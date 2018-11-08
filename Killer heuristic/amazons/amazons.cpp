@@ -8,7 +8,8 @@
 #include<vector>
 using namespace std;
 bitset<64> x;
-vector<tuple<int, int,int>> queens;
+vector<tuple<int, int,bool>> queens;
+bool chance=0;
 char a[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
 void initboard()
 {
@@ -25,6 +26,17 @@ void initboard()
   queens.emplace_back(3, 7,1);
   queens.emplace_back(5, 7,1);
 }
+bool noqueens(int i, int j)
+{
+  for (int k = 0; k <4 ; k++)
+  {
+    if (get<0>(queens[k]) == j && get<1>(queens [ k ]) ==i)
+    {
+      return 0;
+    }
+  }
+  return 1;
+}
 void printboard()
 {
   int blankflag = 0;
@@ -35,7 +47,7 @@ void printboard()
     cout << i;
     for (int j = 1; j < 8; j++)
     {
-      if (blankflag == 1)
+      if (blankflag)
       {
         cout << "|   ";
         blankflag = 0;
@@ -50,22 +62,31 @@ void printboard()
         
         if (x[i * 7 + j - 7] == 1 && get<0>(queens[k]) == (j) && get<1>(queens[k]) == (i))
         {
-          if (get<2>(queens[k]) == 0)
+          if (!get<2>(queens[k]))
           {
             cout << "#  ";
           }
-          else
+          else if(get<2>(queens[k]))
           {
             cout << "O  ";
           }
+          
           blankflag = 1;
         }
+        
+      }
+      if (x[i * 7 + j - 7] == 1 && noqueens(i, j))
+      {
+        cout << "X  ";
+        blankflag = 1;
       }
     }
     cout << "  |";
     cout << "\n   ------------------------------------------------- ";
   }
   cout << " \n       a      b      c      d      e      f       g";
+  cout << "\n Player " << chance<<"'s Chance";
+  chance = !chance;
   /*for (int i = 7; i > 0; i--)
   {
     for (int j = 1; j < 8; j++)
@@ -80,13 +101,12 @@ int main()
   cout << "Hello World!\n";
 
   initboard();
-  cout << get<0>(queens[3]) << get<1>(queens[3]);
-  cout << get<0>(queens[0]) << get<1>(queens[0]);
-  get<1>(queens[2]) = 3;
-  get<0>(queens[2]) = 2;
-  
   system("cls");
-  cout << get<1>(queens[2]);
+
+  for (int i = 0; i < 4; i++)
+  {
+    cout << "queen " << i << " is at " << get<1>(queens[i])<<" pos "<<get<0>(queens[i]);
+  }
   printboard();
   return 0;
 }
