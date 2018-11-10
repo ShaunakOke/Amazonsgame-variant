@@ -6,11 +6,12 @@
 #include<bitset>
 #include<tuple>
 #include<vector>
+#include<string>
 using namespace std;
 bitset<64> x;
 vector<tuple<int, int,bool>> queens;
 bool chance=0;
-char a[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
+char a[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G' };
 void initboard()
 {
   for (int i = 1; i < 50; i++)
@@ -56,23 +57,20 @@ void printboard()
       {
         cout << "   |   ";
       }
-
       for (int k = 0; k < 4; k++)
       {
-        
-        if (x[i * 7 + j - 7] == 1 && get<0>(queens[k]) == (j) && get<1>(queens[k]) == (i))
+      if (x[i * 7 + j - 7] == 1 && get<0>(queens[k]) == (j) && get<1>(queens[k]) == (i))
+      {
+        if (!get<2>(queens[k]))
         {
-          if (!get<2>(queens[k]))
-          {
             cout << "#  ";
-          }
-          else if(get<2>(queens[k]))
-          {
-            cout << "O  ";
-          }
-          
-          blankflag = 1;
         }
+        else if(get<2>(queens[k]))
+        {
+        cout << "O  ";
+        }
+        blankflag = 1;
+      }
         
       }
       if (x[i * 7 + j - 7] == 1 && noqueens(i, j))
@@ -85,8 +83,8 @@ void printboard()
     cout << "\n   ------------------------------------------------- ";
   }
   cout << " \n       a      b      c      d      e      f       g";
-  cout << "\n Player " << chance<<"'s Chance";
-  chance = !chance;
+  cout << "\n Player " << int(chance)+1<<"'s Chance";
+
   /*for (int i = 7; i > 0; i--)
   {
     for (int j = 1; j < 8; j++)
@@ -95,6 +93,68 @@ void printboard()
     }
     cout << "\n";
   }*/
+}
+void inputpos()
+{
+  string b;
+  int flag = 0,indexofchar=10;
+  cout <<  "\n Player " << int(chance)+1 << "'s move. Select position of your queen to move:";
+  cin >> b;
+  for (int i = 0; i < 7; i++)           //test alphabet as column         
+  {
+    if (b[0] == a[i])
+    {
+      indexofchar = i;
+
+      break;
+    }
+  }
+  if (indexofchar == 10 || !isalpha(b[0]))       //alphabet not between a-g or undefined recall .
+  {
+    cout << "Enter alphabet please!";
+    inputpos();
+  }
+  if (0 >= (int(b[1]) - 48) || (int(b[1]) - 48) > 7) //test second character is a number from 1 to 7    
+  {
+    cout << "number 1-7";
+    inputpos();
+  }
+  for (int i = 0; i < 4; i++)  //test if queen of respective player is at that position
+  {
+    if (get<2>(queens[i])==chance && get<0>(queens[i])== indexofchar+1 && get<1>(queens[i])==(int(b[1])-48) )
+    {
+      flag = 1;
+    }
+  }
+  if (!flag)
+  {
+    //system("cls");
+    cout << "no queen there!";
+    inputpos();
+  }
+  b = " ";
+  cout << "Where to move this queen?";
+  cin >> b;
+  for (int i = 0; i < 7; i++)           //test alphabet as column         
+  {
+    if (b[0] == a[i])
+    {
+      indexofchar = i;
+
+      break;
+    }
+  }
+  if (indexofchar == 10 || !isalpha(b[0]))       //alphabet not between a-g or undefined recall .
+  {
+    cout << "Enter alphabet please!";
+    inputpos();
+  }
+  if (0 >= (int(b[1]) - 48) || (int(b[1]) - 48) > 7) //test second character is a number from 1 to 7    
+  {
+    cout << "number 1-7";
+    inputpos();
+  }
+
 }
 int main()
 {
@@ -105,9 +165,11 @@ int main()
 
   for (int i = 0; i < 4; i++)
   {
-    cout << "queen " << i << " is at " << get<1>(queens[i])<<" pos "<<get<0>(queens[i]);
+   // cout << "queen " << i << " is at " << get<1>(queens[i])<<" pos "<<get<0>(queens[i]);
   }
   printboard();
+
+  inputpos();
   return 0;
 }
 /*
