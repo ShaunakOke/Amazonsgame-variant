@@ -7,10 +7,13 @@
 #include<vector>
 #include<string>
 #include<algorithm>
+//#include<cstdlib>
+#include<ctime>
 using namespace std;
 uint64_t x,temp;
 //uint64_t y (0);
 vector<tuple<int, int,bool>> queens;
+int actual;
 bool chance=0;
 char a[] = { 'A', 'B', 'C', 'D', 'E' };
 struct avail
@@ -23,20 +26,20 @@ public:
 
 struct node
 {
+public:
   uint64_t board;
-  int a;
-  node **child;
+  int eval;
+  vector<node*>child;
+  vector<tuple<int, int, bool>> queensnodes;
 };
-void init()
-{
 
-}
 
 avail *n = new avail;
+
 void initboard()
 {
   n->masks = new avail*[25];
-  int row, column,temp,templimit,temp2,temp2limit;
+  int row, column;
   for (int i = 0; i < 25; i++)
   {
     n->masks[i] = new avail;
@@ -57,10 +60,8 @@ void initboard()
   
   for (int i = 0; i < 25; i++)
   {
-   // n->masks[i] = n;
     column = i % 5;
     row = i / 5;
-    //directions = enum(top, bottom, left, right)
     //j=0top j=1bottom j=2left 3right diagonally 4topleft 5topright 6bottomleft 7bottomright
     for (int j = 0; j < 8; j++)
     {
@@ -346,6 +347,7 @@ void printbits(int pos, int dir, int dist)
 
 bool inputpos(int char1, int char2,int char3,int no1,int no2,int no3)
 {
+  cout << a[char1] << no1 << a[char2] << no2 << a[char3] << no3 << "\n";
   int indexofchar = 10,queenindex=10;
 for (int i = 0; i < 4; i++)  //test which queen to move
 {
@@ -686,6 +688,264 @@ int endgame() //returns 0 if game ongoing 1 if player 1 lost 2 if player 2 lost.
 
 }
 
+int evalfn(node* e, int sign)
+{
+  int char1, char2, char3, no1, no2, no3, factor = 50, sum = 0, pos;
+  for (int i = 0; i < 4; i++)
+  {
+    char1 = get<0>(e->queensnodes[i]);
+    no1 = get<1>(e->queensnodes[i]);
+    pos = no1 * 5 + char1;
+    if (pos < 5)//lower row
+    {
+      factor -= 50;
+    }
+    if (pos > 19)//higher row
+    {
+      factor -= 50;
+    }
+    if (pos % 5 == 0)//left side
+    {
+      factor -= 50;
+    }
+    if ((pos - 1) % 5 == 0)//right side
+    {
+      factor -= 50;
+    }
+    int free = 0;
+    for (int j = 0; j < 8; j++)
+    {
+      if ((n->masks[pos]->y[j][0] & e->board) == 0)
+      {
+        free++;
+      }
+    }
+    factor += 40 * free;
+    if (!get<2>(e->queensnodes[i]))
+    {
+      factor *= -1;
+    }
+    sum += factor;
+  }
+  sum = sum + rand() % 50;
+  return sum;
+}
+
+node* gentree(node *z, int limit)
+{
+  int char1=5, char2=5, char3=5, no1=5, no2=5, no3=5,countb=0,flag=0,quind=10;
+  while (limit > 0)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      if ((actual - limit) % 2 != 0)
+      {
+        char1 = get<0>(z->queensnodes[i]);
+        no1 = get<1>(z->queensnodes[i]);
+        quind = i;
+      }
+      else
+      {
+        char1 = get<0>(z->queensnodes[i + 2]);
+        no1 = get<1>(z->queensnodes[i + 2]);
+        quind = i + 2;
+      }
+      for (int j = 0; j < 8; j++)
+      {
+        for (int k = 0; k < 3; k++)
+        {
+          if ((n->masks[no1 * 5 + char1]->y[j][k] & z->board) == 0)
+          {
+            if (j == 0)
+            {
+              no2 = no1 + k + 1;
+              char2 = char1;
+            }
+            else if (j == 1)
+            {
+              no2 = no1 - k - 1;
+              char2 = char1;
+            }
+            else if (j == 2)
+            {
+              no2 = no1;
+              char2 = char1 - k - 1;
+            }
+            else if (j == 3)
+            {
+              no2 = no1;
+              char2 = char1 + k +1;
+            }
+            else if (j == 4)
+            {
+              no2 = no1+k+1;
+              char2 = char1 - k - 1;
+            }
+            else if (j == 5)
+            {
+              no2 = no1 + k + 1;
+              char2 = char1 + k + 1;
+            }
+            else if (j == 6)
+            {
+              no2 = no1 - k - 1;
+              char2 = char1 - k - 1;
+            }
+            else if (j == 7)
+            {
+              no2 = no1 - k - 1;
+              char2 = char1 + k + 1;
+            }
+            z->board &= ~(1ULL << (no1 * 5 + char1));
+            for (int l = 0; l < 8; l++)
+            {
+              for (int m = 0; m < 3; m++)
+              {
+                if ((n->masks[no2 * 5 + char2]->y[l][m] & z->board) == 0)
+                {
+                  if (l == 0)
+                  {
+                    flag = 1;
+                    no3 = no2 + m + 1;
+                    char3 = char2;
+                  }
+                  else if (l == 1)
+                  {
+                    flag = 1;
+                    no3 = no2 - m - 1;
+                    char3 = char2;
+                  }
+                  else if (l == 2)
+                  {
+                    flag = 1;
+                    no3 = no2;
+                    char3 = char2 - m - 1;
+                  }
+                  else if (l == 3)
+                  {
+                    flag = 1;
+                    no3 = no2;
+                    char3 = char2 + m + 1;
+                  }
+                  else if (l == 4)
+                  {
+                    flag = 1;
+                    no3 = no2 + m + 1;
+                    char3 = char2 - m - 1;
+                  }
+                  else if (l == 5)
+                  {
+                    flag = 1;
+                    no3 = no2 + m + 1;
+                    char3 = char2 + m + 1;
+                  }
+                  else if (l == 6)
+                  {
+                    flag = 1;
+                    no3 = no2 - m - 1;
+                    char3 = char2 - m - 1;
+                  }
+                  else if (l == 7)
+                  {
+                    flag = 1;
+                    no3 = no2 - m - 1;
+                    char3 = char2 + m + 1;
+                  }
+                  if (flag)
+                  {
+                    cout << "child added";
+                    node *c = new node;
+                    if ((actual - limit) % 2 == 0)
+                    {
+                      //c->eval = evalfn(c, 1);
+                    }
+                    else
+                    {
+                      //c->eval = evalfn(c, -1);
+                    }
+                   
+                    for (int n = 0; n < 4; n++)
+                    {
+                      if (n != quind)
+                      {
+                        c->queensnodes.emplace_back(get<0>(z->queensnodes[i]), get<1>(z->queensnodes[i]),get<2>(z->queensnodes[i]));
+                        //copy all queens except the ones moved
+                      }
+                      else
+                      {
+                        c->queensnodes.emplace_back(char2, no2,!((actual-limit)%2));
+                      }
+
+                    }
+                    c->board |= z->board;
+                    c->board &= ~(1ULL << (no1 * 5 + char1));
+                    c->board |= 1ULL << (no2 * 5 + char2);
+                    c->board |= 1ULL << (no3 * 5 + char3);
+                    z->child.emplace_back(c);
+                    countb++;
+                    gentree(z->child.back(), limit - 1);
+                  }
+                  
+                }
+              }
+            }
+            if (flag == 0)
+            {//no child added reset board to initial state
+              z->board |= (1ULL << (no1*5+char1));
+            }
+            flag = 0;
+          }
+
+        }
+      }
+    }
+     if (countb > 5000)
+      {
+       //clamp children to 5000
+        break;
+      }
+     limit--;
+  }
+  return z;
+}
+
+int minimax(node *m, int limit, bool maxing)
+{
+  if (limit == 0)
+  {
+    return m->eval;
+  }
+  int flag = 0,i,till;
+  if (maxing)
+  {
+    i = 2;
+    till = 3;
+  }
+  else
+  {
+    i = 0;
+    till = 1;
+  }
+
+  while(i<=till)
+  {
+    for (int j = 0; j < 8; j++)
+    {
+      if ((n->masks[get<1>(m->queensnodes[i]) * 5 + get<0>(m->queensnodes[i])]->y[j][0] & x) == 0)
+      {
+        flag = 1;
+        break;
+      }
+    }
+  }
+  if (flag == 0)
+  {
+    return m->eval;
+  }
+
+
+}
+
 int main()
 {
   initboard();
@@ -760,6 +1020,16 @@ int main()
     {
       while (true)
       {
+        node *start = new node;
+        start->board|= x;
+        for (int i = 0; i < 4; i++)
+        {
+          start->queensnodes.emplace_back(get<0>(queens[i]), get<1>(queens[i]), get<2>(queens[i]));
+        }
+        node *ab = new node;
+        actual = 4;
+        ab= gentree(start,4);
+        
         do {
           b = "";
           char1 = rand() % 5;
@@ -776,7 +1046,7 @@ int main()
           b += '0' + no3;
           cout << "b is" << b;
         } while (!simpletest(b));
-        
+      
         if (inputpos(char1, char2, char3, no1, no2, no3))
         {
           //printboardbits(); print board state for testing only
@@ -806,61 +1076,4 @@ int main()
 10 11 12 13 14
 5  6  7  8  9
 0  1  2  3  4
- ypos = get<1>(queens[i]),xpos=get<0>(queens[i]);
-    for (int j = 0; j <= 1; j++)
-    {
-      for (int k= 0; k <= 1; k++)
-      {//test all possible one moves top and right first as boundaries max are 4
-        cout << "\n topleft stuff" << (min((get<1>(queens[i]) + j), 4) * 5 + min((get<0>(queens[i]) + k), 4));
-        if ((xpos*5+ypos)<20 && (xpos*5+ypos+1)%4 !=0) //checks for positions that have both top and right free
-        {
-          if (x >> ((ypos + j) * 5 + xpos + k) & 1U == 0)
-          {//found free position
-            if (i < 2)
-            {
-              flagp1 = 1;
-            }
-            else
-            {
-              flagp2 = 1;
-            }
-          }
-        }
-        else if (xpos * 5 + ypos < 20)//queen at right boundary
-        {//only check top
-          if (x >> ((ypos + 1) * 5 + xpos) & 1U == 0)
-          {//found free position
-            if (i < 2)
-            {
-              flagp1 = 1;
-            }
-            else
-            {
-              flagp2 = 1;
-            }
-            continue;
-          }
-      }
-        else if ((xpos * 5 + ypos) % 5 != 0)// queen at top boundary
-        {
-
-        }
-    }
-    for (int l = -1; l <= 0; l++)
-    {
-      for (int m = -1; m <= 0; m++)
-      {//test bottom and left now boundaries min is 0
-        if (x>>(max((get<1>(queens[i]) + l), 0) * 5 + max((get<0>(queens[i]) + m), 0))& 1U == 0)
-        {
-          if (i < 2)
-          {
-            flagp1 = 1;
-          }
-          else
-          {
-            flagp2 = 1;
-          }
-        }
-      }
-    }
 */
