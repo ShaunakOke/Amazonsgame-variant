@@ -1,5 +1,5 @@
 // killerheuristicgame.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+//ShaunakOke 18204307
 
 #include "pch.h"
 #include <iostream>
@@ -11,11 +11,14 @@
 #include<ctime>
 using namespace std;
 uint64_t x,temp;
-//uint64_t y (0);
 vector<tuple<int, int,bool>> queens;
 int actual;
 bool chance=0;
+int counter = 0;
+bool killerflag = 1;//set for killer heuristic.
+
 char a[] = { 'A', 'B', 'C', 'D', 'E' };
+//masks
 struct avail
 {
 public:
@@ -23,19 +26,19 @@ public:
     uint64_t y[8][3];
     avail **masks;
 };
-
+//nodes of gametree
 struct node
 {
 public:
   uint64_t board;
-  int eval;
+  int eval,arrowpos;
   vector<node*>child;
   vector<tuple<int, int, bool>> queensnodes;
 };
 
-
+vector<tuple<node*, int>> cutoffarr;
 avail *n = new avail;
-
+//initialize starting masks and queen positions
 void initboard()
 {
   n->masks = new avail*[25];
@@ -222,7 +225,6 @@ void initboard()
   
   queens.emplace_back(3, 0,0);
   x |=1ULL<<3;
-
   queens.emplace_back(4, 1, 0);
   x |= 1ULL << 9;
   queens.emplace_back( 0,3,1);
@@ -231,6 +233,7 @@ void initboard()
   x |= 1ULL << 21;
 
 }
+//check if queen at i,j
 bool noqueens(int i, int j)
 {
   for (int k = 0; k <4 ; k++)
@@ -242,6 +245,7 @@ bool noqueens(int i, int j)
   }
   return 1;
 }
+//print square ascii board representation
 void printboard()
 {
   //system("cls");
@@ -294,6 +298,7 @@ void printboard()
     cout << "\n";
   }*/
 }
+//debugging board bits ascii
 void printboardbits()
 {
   //system("cls");
@@ -335,16 +340,17 @@ void printboardbits()
      cout << "\n";
    }*/
 }
-void printbits(int pos, int dir, int dist)
-{
-  for (int i = 24; i >= 0; i--)
-  {
-    cout << ((n->masks[pos]->y[dir][dist] >> i) & 1ULL);
-  }
-}
 
-//j=0top j=1bottom j=2left 3right 4topleft 5topright 6bottomleft 7bottomright
+/*this format used everywhere.n->masks[position]->y[j][magnitude] is format.
 
+20 21 22 23 24
+15 16 17 18 19
+10 11 12 13 14
+5  6  7  8  9
+0  1  2  3  4
+pos is the corresponding no. on board
+j=0top j=1bottom j=2left 3right 4topleft 5topright 6bottomleft 7bottomright*/
+//check user input according to board AND move the board positions
 bool inputpos(int char1, int char2,int char3,int no1,int no2,int no3)
 {
   cout << a[char1] << no1 << a[char2] << no2 << a[char3] << no3 << "\n";
@@ -591,6 +597,7 @@ if (queenindex == 10)
     return 1;                                                                               
 
 }
+//check user input 
 bool simpletest(string b)
 {
   int flag = 0, indexofchar = 0, queenindex = 10,j=0;
@@ -644,6 +651,7 @@ bool simpletest(string b)
   }
   return 1;
 }
+//check who won and if game has ended
 int endgame() //returns 0 if game ongoing 1 if player 1 lost 2 if player 2 lost.
 {
   int flagp1 = 0,flagp2=0,pos;
@@ -687,9 +695,21 @@ int endgame() //returns 0 if game ongoing 1 if player 1 lost 2 if player 2 lost.
   }
 
 }
-
-int evalfn(node* e, int sign)
+//find eval of any node,m means which player
+int evalfn(node* e,bool m)
 {
+  int it, till;
+  if (m)
+  {
+    it = 2;
+    till = 3;
+  }
+  else
+  {
+    it = 0;
+    till = 1;
+  }
+  
   int char1, char2, char3, no1, no2, no3, factor = 50, sum = 0, pos;
   for (int i = 0; i < 4; i++)
   {
@@ -717,246 +737,339 @@ int evalfn(node* e, int sign)
     {
       if ((n->masks[pos]->y[j][0] & e->board) == 0)
       {
-        free++;
+        free++;//degrees of freedom
       }
     }
-    factor += 40 * free;
-    if (!get<2>(e->queensnodes[i]))
+    if (free == 0)
     {
+      factor -= 600;
+    }
+    factor += 40 * free;
+    if (i != it & i != till)
+    {//opponents queen;
       factor *= -1;
     }
     sum += factor;
+    factor = 0;
   }
-  sum = sum + rand() % 50;
+  sum = sum + 100+(rand() % 50);
+  //cout << "\n eval is:" << sum;
   return sum;
 }
+//generate gametree for each programs's chance
 
-node* gentree(node *z, int limit)
+
+tuple<node*, int> gentree(node *z, int limit, bool maxing, int achievable, int hope)
 {
-  int char1=5, char2=5, char3=5, no1=5, no2=5, no3=5,countb=0,flag=0,quind=10;
-  while (limit > 0)
-  {
-    for (int i = 0; i < 2; i++)
-    {
-      if ((actual - limit) % 2 != 0)
-      {
-        char1 = get<0>(z->queensnodes[i]);
-        no1 = get<1>(z->queensnodes[i]);
-        quind = i;
-      }
-      else
-      {
-        char1 = get<0>(z->queensnodes[i + 2]);
-        no1 = get<1>(z->queensnodes[i + 2]);
-        quind = i + 2;
-      }
-      for (int j = 0; j < 8; j++)
-      {
-        for (int k = 0; k < 3; k++)
-        {
-          if ((n->masks[no1 * 5 + char1]->y[j][k] & z->board) == 0)
-          {
-            if (j == 0)
-            {
-              no2 = no1 + k + 1;
-              char2 = char1;
-            }
-            else if (j == 1)
-            {
-              no2 = no1 - k - 1;
-              char2 = char1;
-            }
-            else if (j == 2)
-            {
-              no2 = no1;
-              char2 = char1 - k - 1;
-            }
-            else if (j == 3)
-            {
-              no2 = no1;
-              char2 = char1 + k +1;
-            }
-            else if (j == 4)
-            {
-              no2 = no1+k+1;
-              char2 = char1 - k - 1;
-            }
-            else if (j == 5)
-            {
-              no2 = no1 + k + 1;
-              char2 = char1 + k + 1;
-            }
-            else if (j == 6)
-            {
-              no2 = no1 - k - 1;
-              char2 = char1 - k - 1;
-            }
-            else if (j == 7)
-            {
-              no2 = no1 - k - 1;
-              char2 = char1 + k + 1;
-            }
-            z->board &= ~(1ULL << (no1 * 5 + char1));
-            for (int l = 0; l < 8; l++)
-            {
-              for (int m = 0; m < 3; m++)
-              {
-                if ((n->masks[no2 * 5 + char2]->y[l][m] & z->board) == 0)
-                {
-                  if (l == 0)
-                  {
-                    flag = 1;
-                    no3 = no2 + m + 1;
-                    char3 = char2;
-                  }
-                  else if (l == 1)
-                  {
-                    flag = 1;
-                    no3 = no2 - m - 1;
-                    char3 = char2;
-                  }
-                  else if (l == 2)
-                  {
-                    flag = 1;
-                    no3 = no2;
-                    char3 = char2 - m - 1;
-                  }
-                  else if (l == 3)
-                  {
-                    flag = 1;
-                    no3 = no2;
-                    char3 = char2 + m + 1;
-                  }
-                  else if (l == 4)
-                  {
-                    flag = 1;
-                    no3 = no2 + m + 1;
-                    char3 = char2 - m - 1;
-                  }
-                  else if (l == 5)
-                  {
-                    flag = 1;
-                    no3 = no2 + m + 1;
-                    char3 = char2 + m + 1;
-                  }
-                  else if (l == 6)
-                  {
-                    flag = 1;
-                    no3 = no2 - m - 1;
-                    char3 = char2 - m - 1;
-                  }
-                  else if (l == 7)
-                  {
-                    flag = 1;
-                    no3 = no2 - m - 1;
-                    char3 = char2 + m + 1;
-                  }
-                  if (flag)
-                  {
-                    cout << "child added";
-                    node *c = new node;
-                    if ((actual - limit) % 2 == 0)
-                    {
-                      //c->eval = evalfn(c, 1);
-                    }
-                    else
-                    {
-                      //c->eval = evalfn(c, -1);
-                    }
-                   
-                    for (int n = 0; n < 4; n++)
-                    {
-                      if (n != quind)
-                      {
-                        c->queensnodes.emplace_back(get<0>(z->queensnodes[i]), get<1>(z->queensnodes[i]),get<2>(z->queensnodes[i]));
-                        //copy all queens except the ones moved
-                      }
-                      else
-                      {
-                        c->queensnodes.emplace_back(char2, no2,!((actual-limit)%2));
-                      }
+  int char1 = 5, char2 = 5, char3 = 5, no1 = 5, no2 = 5, no3 = 5, countb = 0, flag = 0, quind = 10;
 
-                    }
-                    c->board |= z->board;
-                    c->board &= ~(1ULL << (no1 * 5 + char1));
-                    c->board |= 1ULL << (no2 * 5 + char2);
-                    c->board |= 1ULL << (no3 * 5 + char3);
-                    z->child.emplace_back(c);
-                    countb++;
-                    gentree(z->child.back(), limit - 1);
-                  }
-                  
-                }
-              }
-            }
-            if (flag == 0)
-            {//no child added reset board to initial state
-              z->board |= (1ULL << (no1*5+char1));
-            }
-            flag = 0;
-          }
-
-        }
-      }
-    }
-     if (countb > 5000)
-      {
-       //clamp children to 5000
-        break;
-      }
-     limit--;
-  }
-  return z;
-}
-
-int minimax(node *m, int limit, bool maxing)
-{
   if (limit == 0)
   {
-    return m->eval;
+    return make_tuple(z, evalfn(z, maxing));
   }
-  int flag = 0,i,till;
+  int  i, till, temp, score = 0;
   if (maxing)
   {
+    score = -30000;
     i = 2;
     till = 3;
   }
   else
   {
+    score = +30000;
     i = 0;
     till = 1;
   }
 
-  while(i<=till)
+  while (i <= till)
   {
+
     for (int j = 0; j < 8; j++)
     {
-      if ((n->masks[get<1>(m->queensnodes[i]) * 5 + get<0>(m->queensnodes[i])]->y[j][0] & x) == 0)
+
+      if ((n->masks[get<1>(z->queensnodes[i]) * 5 + get<0>(z->queensnodes[i])]->y[j][0] & z->board) == 0)
       {
         flag = 1;
         break;
       }
     }
+    i++;
   }
-  if (flag == 0)
+
+  if (flag == 0)// no moves possible  for any queen shouldn't be called normally.
   {
-    return m->eval;
+    return make_tuple(z, evalfn(z, maxing));
+
+  }
+  if (maxing)
+  {
+    score = -30000;
+    i = 2;
+    till = 3;
+  }
+  else
+  {
+    score = +30000;
+    i = 0;
+    till = 1;
+  }
+  node* selected = new node;
+  while (i <= till)
+  { //pick right queen at each height.
+    char1 = get<0>(z->queensnodes[i]);
+    no1 = get<1>(z->queensnodes[i]);
+    quind = i;
+    for (int j = 0; j < 8; j++)
+    {
+      for (int k = 0; k < 3; k++)
+      {
+        if (((n->masks[no1 * 5 + char1]->y[j][k]) & z->board) == 0)
+        {
+          flag = 1;
+          if (j == 0)
+          {
+            no2 = no1 + k + 1;
+            char2 = char1;
+          }
+          else if (j == 1)
+          {
+            no2 = no1 - k - 1;
+            char2 = char1;
+          }
+          else if (j == 2)
+          {
+            no2 = no1;
+            char2 = char1 - k - 1;
+          }
+          else if (j == 3)
+          {
+            no2 = no1;
+            char2 = char1 + k + 1;
+          }
+          else if (j == 4)
+          {
+            no2 = no1 + k + 1;
+            char2 = char1 - k - 1;
+          }
+          else if (j == 5)
+          {
+            no2 = no1 + k + 1;
+            char2 = char1 + k + 1;
+          }
+          else if (j == 6)
+          {
+            no2 = no1 - k - 1;
+            char2 = char1 - k - 1;
+          }
+          else if (j == 7)
+          {
+            no2 = no1 - k - 1;
+            char2 = char1 + k + 1;
+          }
+          if (no2 > 4 || char2 > 4 || no2 < 0 || char2 < 0)
+          {
+
+            continue;
+          }
+          z->board &= ~(1ULL << (no1 * 5 + char1));
+          for (int l = 0; l < 8; l++)
+          {
+            for (int m = 0; m < 3; m++)
+            {
+              if ((n->masks[no2 * 5 + char2]->y[l][m] & z->board) == 0)
+              {
+
+                if (l == 0)
+                {
+                  no3 = no2 + m + 1;
+                  char3 = char2;
+                }
+                else if (l == 1)
+                {
+                  no3 = no2 - m - 1;
+                  char3 = char2;
+                }
+                else if (l == 2)
+                {
+                  no3 = no2;
+                  char3 = char2 - m - 1;
+                }
+                else if (l == 3)
+                {
+                  no3 = no2;
+                  char3 = char2 + m + 1;
+                }
+                else if (l == 4)
+                {
+                  no3 = no2 + m + 1;
+                  char3 = char2 - m - 1;
+                }
+                else if (l == 5)
+                {
+                  no3 = no2 + m + 1;
+                  char3 = char2 + m + 1;
+                }
+                else if (l == 6)
+                {
+                  no3 = no2 - m - 1;
+                  char3 = char2 - m - 1;
+                }
+                else if (l == 7)
+                {
+                  no3 = no2 - m - 1;
+                  char3 = char2 + m + 1;
+                }
+
+                if (no3 > 4 || char3 > 4 || no3 < 0 || char3 < 0 || (char3 == char2 && no3 == no2))
+                {
+                  continue;
+                }
+                node *c = new node;
+                for (int p = 0; p < 4; p++)
+                {
+                  if (p != quind)
+                  {
+                    c->queensnodes.emplace_back(get<0>(z->queensnodes[p]), get<1>(z->queensnodes[p]), get<2>(z->queensnodes[p]));
+                    //copy all queens except the ones moved
+                  }
+                  else
+                  {
+                    c->queensnodes.emplace_back(char2, no2, get<2>(z->queensnodes[p]));
+                  }
+
+                }
+                counter++;
+                c->board = z->board;
+                c->board &= ~(1ULL << (no1 * 5 + char1));
+                c->board |= 1ULL << (no2 * 5 + char2);
+                c->board |= 1ULL << (no3 * 5 + char3);
+                c->arrowpos = no3 * 5 + char3;
+                c->eval = evalfn(c, maxing);
+                //cout <<"\n"<<c->arrowpos<< "arrowpos"<<char1<<no1<<char2<<no2<<char3<<no3;
+                z->child.emplace_back(c);
+
+                countb++;
+                auto ag = (gentree(z->child.back(), limit - 1, !maxing, achievable, hope));
+                temp = get<1>(ag);
+                selected = get<0>(ag);
+                if (maxing)
+                {
+                  score = max(score, temp);
+                  achievable = max(achievable, score);
+                  selected = z->child.back();
+                }
+                else
+                {
+                  score = min(score, temp);
+                  hope = min(hope, score);
+                  selected = z->child.back();
+                }
+                if (achievable >= hope)
+                {
+                  z->board |= (1ULL << (no1 * 5 + char1));
+                  return make_tuple(c, score);
+                  if (killerflag == 1 && maxing)
+                  {
+                    int cf = 0;
+                    for (int g = 0; g < cutoffarr.size(); g++)
+                    {
+                      if (get<0>(cutoffarr[g])->board == c->board)
+                      {
+                        cf = 1;
+                        get<1>(cutoffarr[g]) += 1;
+                      }
+                    }
+                    if (cf == 0)
+                    {
+                      cutoffarr.emplace_back(c, 0);
+                    }
+                  }
+                  //break;
+                }
+              }
+
+            }
+          }
+
+
+          z->board |= (1ULL << (no1 * 5 + char1));//add removed queen used for testing purposes.
+
+
+        }
+
+      }
+    }
+    i++;
   }
 
-
+  if (killerflag == 0 || cutoffarr.size() == 0)
+  {
+    return make_tuple(selected, score);
+  }
+  else
+  {
+    
+    node *max = new node;
+    max = get<0>(cutoffarr[0]);
+    for (i = 0; i < cutoffarr.size()-2; i++)
+    {
+      if (get<1>(cutoffarr[i]) < get<1>(cutoffarr[i + 1]))
+      {
+        max = get<0>(cutoffarr[i + 1]);
+     }
+    }
+    counter++;
+    return make_tuple(max, evalfn(max, maxing));
+  
+  }
+}
+node* traverse(node* root, node* target)
+{//messy code but works for depth 3
+  int flag = 0;
+  
+  for (int i = 0; i < root->child.size(); i++)
+  {
+    if (root->child[i] == target)
+    {
+      return root->child[i];
+    }
+    else
+    {
+      for (int j = 0; j < root->child[i]->child.size(); j++)
+      {
+        if (root->child[i]->child[j]==target)
+        {
+          return root->child[i];
+        }
+        else
+        {
+          for (int k = 0; k < root->child[i]->child[j]->child.size(); k++)
+          {
+            if (root->child[i]->child[j]->child[k] == target)
+            {
+              return root->child[i];
+              flag = 1;
+            }
+            
+          }
+        }
+      }
+    }
+    if (flag)//unexpected for safekeeping.
+    {
+      return root->child[0];
+   }
+  }
 }
 
+//call everything
+//note indexes 0,1 are always players queens(hardcoded)
+//2,3 are programs.
 int main()
 {
   initboard();
   string b;
-  /*
-  x |= 1ULL<<2;
-  x |= 1ULL << 7;
-  x |= 1ULL << 8;
-  x |= 1ULL << 13;
-  x |= 1ULL << 14;
-  x |= 1ULL << 4;*/
+ 
   for (int i = 0; i < 25; i++)
   {
     cout << ((x >> i)&1U);
@@ -965,7 +1078,7 @@ int main()
   printboard();
   int flag = 0, char1, char2, char3, no1, no2, no3;
   chance = 0;
-  while (endgame()==0)
+  while (endgame() == 0)
   {
     if (chance == 0)
     {
@@ -973,8 +1086,8 @@ int main()
       {
         do
         {
-        cout << "\n Player " << int(chance) + 1 << "'s move. Select position of your queen to move:where to move and arrow position like:D0C0C3\n";
-         cin >> b;
+          cout << "\n Player " << int(chance) + 1 << "'s move. Select position of your queen to move:where to move and arrow position like:D0C0C3\n";
+          cin >> b;
         } while (!simpletest(b));
         for (int i = 0; i < 5; i++)
         {
@@ -1003,63 +1116,89 @@ int main()
         no1 = int(b[1]) - 48;
         no2 = int(b[3]) - 48;
         no3 = int(b[5]) - 48;
-       
+
         if (inputpos(char1, char2, char3, no1, no2, no3))
         {
-          printboardbits();
+          //printboardbits();
           cout << "successful";
           cout << chance;
           chance = !chance;
           cout << "new p" << chance;
+          b = "";
           break;
         }
       }
     }
-  
     else
     {
-      while (true)
+      printboardbits();
+      node *start = new node;
+      start->board = x;
+      for (int i = 0; i < 4; i++)
       {
-        node *start = new node;
-        start->board|= x;
-        for (int i = 0; i < 4; i++)
+        start->queensnodes.emplace_back(get<0>(queens[i]), get<1>(queens[i]), get<2>(queens[i]));
+        cout << "\n"<<get<0>(start->queensnodes[i]);
+      }
+      node *ab = new node;
+      actual = 3;
+      killerflag = 1;
+      ab = get<0>(gentree(start, actual,true,-34000,34000));
+      cout << "ok";
+      int quind,as=0;
+      if (killerflag == 1)
+      {
+      ab=traverse(start,ab);//works for depth 3
+      }
+      cout << "counter" << counter++;
+      for (int i = 2; i < 4; i++)
+      {
+        if (get<0>(queens[i]) != get<0>(ab->queensnodes[i])
+          || get<1>(queens[i]) != get<1>(ab->queensnodes[i]))
         {
-          start->queensnodes.emplace_back(get<0>(queens[i]), get<1>(queens[i]), get<2>(queens[i]));
+          //find which queen was moved
+          quind = i;
+          char1 = get<0>(start->queensnodes[i]);
+          char2 = get<0>(ab->queensnodes[i]);
+          char3 = ab->arrowpos % 5;
+          no1 = get<1>(start->queensnodes[i]);
+          no2 = get<1>(ab->queensnodes[i]);
+          no3 = ab->arrowpos / 5;
+          
+          as = 1;
         }
-        node *ab = new node;
-        actual = 4;
-        ab= gentree(start,4);
+
+
+      }
+      if (as == 0)
+      {
+        //no queen moved error testing condition.
+        return 0;
+      }
+      b.clear();
+      b += a[char1];
+      b += '0' + no1;
+      b += a[char2];
+      b += '0' + no2;
+      b += a[char3];
+      b += '0' + no3;
+      cout << "b is" << b;
+      if (inputpos(char1, char2, char3, no1, no2, no3))
+       {
+       
+        printboardbits();// print board state for testing only
+        get<0>(queens[quind]) = get<0>(ab->queensnodes[quind]);
+        get<1>(queens[quind]) = get<1>(ab->queensnodes[quind]);
+        cout << "successful";
         
-        do {
-          b = "";
-          char1 = rand() % 5;
-          char2 = rand() % 5;
-          char3 = rand() % 5;
-          no1 = rand() % 5;
-          no2 = rand() % 5;
-          no3 = rand() % 5;
-          b += a[char1];
-          b += '0' + no1;
-          b += a[char2];
-          b += '0' + no2;
-          b += a[char3];
-          b += '0' + no3;
-          cout << "b is" << b;
-        } while (!simpletest(b));
-      
-        if (inputpos(char1, char2, char3, no1, no2, no3))
-        {
-          //printboardbits(); print board state for testing only
-          cout << "successful";
-          cout << chance;
-          chance = !chance;
-          break;
-        }
+        chance = !chance;
+        cout << chance;
+        counter = 0;
       }
     }
-    
-    
   }
+    
+    
+  
   if (endgame()==1)
   {
     cout << "\n the human has somehow won";
